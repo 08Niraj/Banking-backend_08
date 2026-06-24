@@ -35,46 +35,42 @@ const accountSchema= new mongoose.Schema({
 //have a specific status.
 accountSchema.index({user:1},{status:1})
 
-accountSchema.methods.getBalance=async function(){
-     const balanceData=await ledgerModel.aggregate([
-        {$match:{account:this._id}},
-        {$group:{
-            _id:null,
-            totalDebit:{
-                $sum:{
-                    $cond:[
-                        {$eq:["$type","DEBIT"]},
-                        "$amount",
-                    0
-                    ]
-                }
-                
-            },
-             totalCredit:{
-                $sum:{
-                    $cond:[
-                        {$eq:["$type","CREDIT"]},
-                        "$amount",
-                    0
-                    ]
-                }
-            }
-        }},
+accountSchema.methods.getBalance = async function () {
+    const result = await ledgerModel.aggregate([
         {
-            $project:{
-                _id:0,
-                balance:{$subtract:["$totalCredit","$totalDebit"]}
+            $match: {
+                account: this._id
+            }
+        },
+        {
+            $group: {
+                _id: null,
+                totalCredit: {
+                    $sum: {
+                        $cond: [
+                            { $eq: ["$type", "CREDIT"] },
+                            "$amount",
+                            0
+                        ]
+                    }
+                },
+                totalDebit: {
+                    $sum: {
+                        $cond: [
+                            { $eq: ["$type", "DEBIT"] },
+                            "$amount",
+                            0
+                        ]
+                    }
+                }
             }
         }
-     ])
+    ]);
 
-     if(balanceData.length ===0)
-     {
-        return 0
-     }
+    if (!result.length) return 0;
 
-     return balanceData[0].balance
-}
+    return result[0].totalCredit - result[0].totalDebit;
+};
 
 
 const accountModel=mongoose.model("account",accountSchema)
